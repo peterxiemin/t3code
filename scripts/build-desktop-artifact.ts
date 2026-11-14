@@ -2817,9 +2817,13 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     ],
   };
   const updateChannel = resolveDesktopUpdateChannel(version);
+  const githubRepository = yield* Config.String("GITHUB_REPOSITORY").pipe(Config.option);
+  // This fork's macOS builds have no signing identity and cannot use Squirrel.Mac updates.
+  const unsignedPersonalMac =
+    platform === "mac" && Option.getOrUndefined(githubRepository) === "peterxiemin/t3code";
   // Missing publish config infers a GitHub feed from tokens; staging has no repository, so manifest generation would crash.
   buildConfig.publish = null;
-  if (!isDesktopPreviewVersion(version)) {
+  if (!isDesktopPreviewVersion(version) && !unsignedPersonalMac) {
     const publishConfig = yield* resolveGitHubPublishConfig(updateChannel);
     if (publishConfig) {
       buildConfig.publish = [publishConfig];

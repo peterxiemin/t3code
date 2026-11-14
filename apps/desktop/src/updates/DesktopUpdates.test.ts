@@ -77,6 +77,26 @@ const stableUpdateInfo = (
 };
 
 describe("DesktopUpdates", () => {
+  it.effect("uses the personal Linux nightly feed even with a saved stable preference", () => {
+    const harness = makeHarness({
+      platform: "linux",
+      packageType: "deb",
+      appVersion: "0.1.9-nightly.20261114.5",
+      savedChannel: "latest",
+      appUpdateYml: "provider: github\nowner: peterxiemin\nrepo: t3code\n",
+      env: { T3CODE_DESKTOP_MOCK_UPDATES: "false" },
+    });
+    return Effect.scoped(
+      Effect.gen(function* () {
+        const updates = yield* DesktopUpdates.DesktopUpdates;
+        yield* updates.configure;
+        assert.equal((yield* updates.getState).channel, "nightly");
+        assert.isTrue(harness.autoDownload());
+        assert.isTrue(harness.autoInstallOnQuit());
+        assert.deepStrictEqual(harness.feedUrls(), []);
+      }),
+    ).pipe(Effect.provide(harness.layer));
+  });
   it.effect("updates Linux .deb installs and leaves other non-AppImage installs off", () =>
     Effect.gen(function* () {
       const linuxState = (packageType: string | undefined) =>

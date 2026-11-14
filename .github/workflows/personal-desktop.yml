@@ -85,7 +85,7 @@ jobs:
         run: |
           set -euo pipefail
           version=$(node -p "require('./apps/desktop/package.json').version")
-          echo "version=${version}-preview.$(date -u +%Y%m%d).${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}-nightly.$(date -u +%Y%m%d).${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           if [[ "$EVENT_NAME" == 'schedule' && "$CHANGED" != 'true' ]]; then
             echo 'build=false' >> "$GITHUB_OUTPUT"
@@ -165,7 +165,7 @@ jobs:
       resource_key: ${{ matrix.resource_key }}
       ref: ${{ needs.prepare.outputs.sha }}
       version: ${{ needs.prepare.outputs.version }}
-      release_channel: preview
+      release_channel: nightly
       relay_client_tracing: false
       launch_check: true
       clerk_publishable_key: ""
@@ -185,6 +185,15 @@ jobs:
           pattern: desktop-*
           path: packages
           merge-multiple: true
+      - name: Verify Linux update metadata
+        env:
+          BUILD_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          test -f packages/nightly-linux.yml
+          grep -Fx "version: $BUILD_VERSION" packages/nightly-linux.yml
+          grep -F '.AppImage' packages/nightly-linux.yml
+          grep -F 'sha512:' packages/nightly-linux.yml
       - name: Publish personal preview
         env:
           GH_TOKEN: ${{ github.token }}
@@ -192,7 +201,7 @@ jobs:
           BUILD_SHA: ${{ needs.prepare.outputs.sha }}
         run: |
           set -euo pipefail
-          gh release create "personal-$BUILD_VERSION" packages/* \
+          gh release create "v$BUILD_VERSION" packages/* \
             --repo "$GITHUB_REPOSITORY" --target "$BUILD_SHA" --prerelease \
             --title "Personal T3 Code $BUILD_VERSION" \
-            --notes 'Personal preview build. macOS packages are unsigned and not notarized. Auto-updates are disabled.'
+            --notes 'Personal build. Linux updates use this repository. macOS packages are unsigned and require manual updates.'

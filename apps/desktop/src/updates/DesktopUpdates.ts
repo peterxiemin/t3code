@@ -1191,13 +1191,23 @@ export const make = Effect.gen(function* () {
       }
 
       const settings = yield* desktopSettings.get;
+      // Personal Linux builds follow only the fork's nightly feed, even when they inherit a
+      // Stable preference from an existing installation.
+      const personalLinuxFeed =
+        environment.platform === "linux" &&
+        policy.feedUrl === undefined &&
+        Option.isSome(appUpdateYmlConfig) &&
+        appUpdateYmlConfig.value.provider === "github" &&
+        appUpdateYmlConfig.value.owner === "peterxiemin" &&
+        appUpdateYmlConfig.value.repo === "t3code";
+      const updateChannel = personalLinuxFeed ? "nightly" : settings.updateChannel;
       const disabledReason = yield* resolveDisabledReason;
       // A blocked nightly channel still lets the user switch back to stable, so it stays updatable.
       yield* Ref.set(desktopState.canInstallUpdates, Option.isNone(disabledReason));
       yield* setState(
         yield* baseUpdateState(
-          settings.updateChannel,
-          Option.orElse(disabledReason, () => channelBlockedReason(settings.updateChannel)),
+          updateChannel,
+          Option.orElse(disabledReason, () => channelBlockedReason(updateChannel)),
         ),
       );
       if (Option.isSome(disabledReason)) {
@@ -1205,9 +1215,9 @@ export const make = Effect.gen(function* () {
       }
       yield* Ref.set(updaterConfiguredRef, true);
 
-      yield* electronUpdater.setAutoDownload(false);
-      yield* electronUpdater.setAutoInstallOnAppQuit(false);
-      yield* applyAutoUpdaterChannel(settings.updateChannel);
+      yield* electronUpdater.setAutoDownload(personalLinuxFeed);
+      yield* electronUpdater.setAutoInstallOnAppQuit(personalLinuxFeed);
+      yield* applyAutoUpdaterChannel(updateChannel);
       yield* electronUpdater.setDisableDifferentialDownload(
         isArm64HostRunningIntelBuild(environment.runtimeInfo),
       );

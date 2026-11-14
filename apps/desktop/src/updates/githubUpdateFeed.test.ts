@@ -66,6 +66,35 @@ const offeredRelease = async (
 const crowdedFeed = Array.from({ length: 10 }, (_, i) => `v0.1.10-preview.20261112.${4550 + i}`);
 
 describe("GitHubProvider nightly lookup", () => {
+  it("loads personal nightly metadata from the fork despite older personal preview tags", async () => {
+    const tag = "v0.1.9-nightly.20261114.7";
+    const request = async ({ path = "" }: { readonly path?: string | null }) => {
+      if (path === "/peterxiemin/t3code/releases.atom") {
+        return `<feed xmlns="http://www.w3.org/2005/Atom"><entry><link rel="alternate" href="https://github.com/peterxiemin/t3code/releases/tag/${tag}"/><title>Personal build</title><content type="html">notes</content></entry><entry><link rel="alternate" href="https://github.com/peterxiemin/t3code/releases/tag/personal-0.1.9-preview.20261114.5"/><title>Old preview</title><content type="html">notes</content></entry></feed>`;
+      }
+      if (path === `/peterxiemin/t3code/releases/download/${tag}/nightly-linux.yml`) {
+        return "version: 0.1.9-nightly.20261114.7\npath: T3-Code.AppImage\nsha512: abc\n";
+      }
+      throw new Error(`unexpected request: ${path}`);
+    };
+    const provider = new GitHubProvider(
+      { provider: "github", owner: "peterxiemin", repo: "t3code" },
+      {
+        allowPrerelease: true,
+        channel: "nightly",
+        currentVersion: semver.parse("0.1.9-nightly.20261114.6"),
+        fullChangelog: false,
+      } as ProviderArgs[1],
+      {
+        isUseMultipleRangeRequest: false,
+        platform: "linux",
+        executor: { request },
+      } as ProviderArgs[2],
+    );
+    const result = await provider.getLatestVersion();
+    expect(result.tag).toEqual(tag);
+    expect(result.version).toEqual("0.1.9-nightly.20261114.7");
+  });
   it.each([
     ["other tags fill the feed", crowdedFeed],
     ["the feed's first nightly is an older one", [nightly(4603)]],
