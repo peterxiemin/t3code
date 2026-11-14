@@ -15,8 +15,8 @@ const MAX_ARCHIVE = 2_000_000_000;
 const BUNDLE_ID = "com.t3tools.t3code";
 
 function parseVersion(value) {
-  const m = /^(\d+)\.(\d+)\.(\d+)-nightly\.(\d{8})\.(\d+)$/.exec(value);
-  return m ? m.slice(1).map(Number) : null;
+  const m = /^(\d+)\.(\d+)\.(\d+)-nightly\.(\d{8})\.(\d+)(?:\.personal\.(\d+))?$/.exec(value);
+  return m ? m.slice(1).map((part) => Number(part ?? 0)) : null;
 }
 export function newer(a, b) {
   const left = parseVersion(a),

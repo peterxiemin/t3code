@@ -38,6 +38,21 @@ NodeTest.test("selects the newest valid personal nightly release and rejects oth
   NodeAssert.equal(newer("0.1.9-preview.20261114.5", old), false);
 });
 
+NodeTest.test(
+  "upgrades from a legacy build and orders official baselines and personal builds",
+  () => {
+    const old = "0.1.9-nightly.20261114.7";
+    const first = "0.1.10-nightly.20261114.4669.personal.8";
+    const next = "0.1.10-nightly.20261114.4669.personal.10";
+    const newerBaseline = "0.1.10-nightly.20261115.4700.personal.1";
+    NodeAssert.equal(selectRelease([release(first, "a"), release(next, "b")], old).version, next);
+    NodeAssert.equal(newer(next, first), true);
+    NodeAssert.equal(newer(newerBaseline, next), true);
+    NodeAssert.equal(newer(first, "0.1.10-nightly.20261114.4669"), true);
+    NodeAssert.equal(newer("0.1.10-nightly.20261114.4669.personal.invalid", old), false);
+  },
+);
+
 NodeTest.test("verifies downloaded bytes and rejects a mismatched digest", async () => {
   const dir = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "t3-update-test-"));
   try {
