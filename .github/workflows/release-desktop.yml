@@ -740,6 +740,7 @@ jobs:
               export T3CODE_MAC_UPDATE_TEST_ARCHIVE="$(ls "$GITHUB_WORKSPACE"/release/*-arm64.zip)"
               export T3CODE_MAC_UPDATE_TEST_VERSION='${{ inputs.version }}'
               node --test apps/desktop/personal-mac-updater/updater.test.mjs
+              check+=(--check-personal-mac-update)
             fi
             executable=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$app/Contents/Info.plist")
             "${check[@]}" --executable "$app/Contents/MacOS/$executable"

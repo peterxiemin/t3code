@@ -3,6 +3,7 @@
 // messages render. Release jobs run it so a build whose backend or bundle cannot start fails
 // before it is published.
 import * as NodeFS from "node:fs";
+import * as NodeChildProcess from "node:child_process";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import * as NodeTimersPromises from "node:timers/promises";
@@ -22,6 +23,7 @@ const { values } = NodeUtil.parseArgs({
     // An unpackaged app directory for a plain Electron executable, as PR CI runs it.
     app: { type: "string" },
     "artifacts-dir": { type: "string" },
+    "check-personal-mac-update": { type: "boolean" },
   },
 });
 const executable = values.executable;
@@ -51,7 +53,7 @@ try {
       XDG_DATA_HOME: NodePath.join(home, ".local/share"),
       T3CODE_HOME: t3Home,
       T3CODE_TELEMETRY_ENABLED: "false",
-      T3CODE_DISABLE_AUTO_UPDATE: "true",
+      T3CODE_DISABLE_AUTO_UPDATE: values["check-personal-mac-update"] ? "false" : "true",
     },
     timeout: STEP_TIMEOUT_MS,
   });
@@ -66,6 +68,19 @@ try {
     step = "opening the thread";
     await thread.click();
     await page.getByText(THREAD_MESSAGE).waitFor({ timeout: STEP_TIMEOUT_MS });
+    if (values["check-personal-mac-update"]) {
+      step = "waiting for the personal Mac update helper";
+      const pid = app.process().pid;
+      let found = false;
+      for (let attempt = 0; attempt < 40 && !found; attempt++) {
+        const ps = NodeChildProcess.spawnSync("/bin/ps", ["-axo", "command="], {
+          encoding: "utf8",
+        });
+        found = ps.status === 0 && ps.stdout.includes(`personal-mac-updater.mjs ${pid} `);
+        if (!found) await NodeTimersPromises.setTimeout(250);
+      }
+      if (!found) throw new Error("The personal Mac update helper did not start.");
+    }
   } catch (error) {
     NodeFS.mkdirSync(artifactsDir, { recursive: true });
     await page
