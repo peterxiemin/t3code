@@ -73,7 +73,7 @@ try {
       const pid = app.process().pid;
       let found = false;
       for (let attempt = 0; attempt < 40 && !found; attempt++) {
-        const ps = NodeChildProcess.spawnSync("/bin/ps", ["-axo", "command="], {
+        const ps = NodeChildProcess.spawnSync("/bin/ps", ["-axww", "-o", "command="], {
           encoding: "utf8",
         });
         found = ps.status === 0 && ps.stdout.includes(`personal-mac-updater.mjs ${pid} `);

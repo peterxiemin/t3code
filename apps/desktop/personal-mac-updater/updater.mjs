@@ -125,7 +125,7 @@ async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 function otherInstances(executable, parentPid) {
-  const lines = command("/bin/ps", ["-axo", "pid=,command="]).split("\n");
+  const lines = command("/bin/ps", ["-axww", "-o", "pid=,command="]).split("\n");
   return lines.some((line) => {
     const m = /^\s*(\d+)\s+(.+)$/.exec(line);
     return (
