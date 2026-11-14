@@ -556,7 +556,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
 
   it.effect("configures the personal Linux feed without enabling unsigned macOS updates", () =>
     Effect.gen(function* () {
-      const version = "0.1.9-nightly.20261114.6";
+      const version = "0.1.10-nightly.20261114.4669.personal.8";
       const linux = yield* createBuildConfig(
         "linux",
         "AppImage",

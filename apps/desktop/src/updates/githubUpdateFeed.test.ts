@@ -8,7 +8,10 @@ type ProviderArgs = ConstructorParameters<typeof GitHubProvider>;
 // electron-updater's own dependency, which apps/desktop does not declare.
 const semver = NodeModule.createRequire(
   NodeModule.createRequire(import.meta.url).resolve("electron-updater"),
-)("semver") as { parse: (version: string) => ProviderArgs[1]["currentVersion"] };
+)("semver") as {
+  parse: (version: string) => ProviderArgs[1]["currentVersion"];
+  gt: (left: string, right: string) => boolean;
+};
 
 const REPO = "/pingdotgg/t3code";
 const nightly = (build: number) => `v0.1.10-nightly.20261112.${build}`;
@@ -66,14 +69,31 @@ const offeredRelease = async (
 const crowdedFeed = Array.from({ length: 10 }, (_, i) => `v0.1.10-preview.20261112.${4550 + i}`);
 
 describe("GitHubProvider nightly lookup", () => {
+  it("orders personal builds after the legacy build and in personal build order", () => {
+    expect(semver.gt("0.1.10-nightly.20261114.4669.personal.8", "0.1.9-nightly.20261114.6")).toBe(
+      true,
+    );
+    expect(
+      semver.gt(
+        "0.1.10-nightly.20261114.4669.personal.10",
+        "0.1.10-nightly.20261114.4669.personal.9",
+      ),
+    ).toBe(true);
+    expect(
+      semver.gt(
+        "0.1.10-nightly.20261115.4700.personal.1",
+        "0.1.10-nightly.20261114.4669.personal.10",
+      ),
+    ).toBe(true);
+  });
   it("loads personal nightly metadata from the fork despite older personal preview tags", async () => {
-    const tag = "v0.1.9-nightly.20261114.7";
+    const tag = "v0.1.10-nightly.20261114.4669.personal.8";
     const request = async ({ path = "" }: { readonly path?: string | null }) => {
       if (path === "/peterxiemin/t3code/releases.atom") {
         return `<feed xmlns="http://www.w3.org/2005/Atom"><entry><link rel="alternate" href="https://github.com/peterxiemin/t3code/releases/tag/${tag}"/><title>Personal build</title><content type="html">notes</content></entry><entry><link rel="alternate" href="https://github.com/peterxiemin/t3code/releases/tag/personal-0.1.9-preview.20261114.5"/><title>Old preview</title><content type="html">notes</content></entry></feed>`;
       }
       if (path === `/peterxiemin/t3code/releases/download/${tag}/nightly-linux.yml`) {
-        return "version: 0.1.9-nightly.20261114.7\npath: T3-Code.AppImage\nsha512: abc\n";
+        return "version: 0.1.10-nightly.20261114.4669.personal.8\npath: T3-Code.AppImage\nsha512: abc\n";
       }
       throw new Error(`unexpected request: ${path}`);
     };
@@ -93,7 +113,7 @@ describe("GitHubProvider nightly lookup", () => {
     );
     const result = await provider.getLatestVersion();
     expect(result.tag).toEqual(tag);
-    expect(result.version).toEqual("0.1.9-nightly.20261114.7");
+    expect(result.version).toEqual("0.1.10-nightly.20261114.4669.personal.8");
   });
   it.each([
     ["other tags fill the feed", crowdedFeed],

@@ -25,6 +25,7 @@ jobs:
     outputs:
       sha: ${{ steps.metadata.outputs.sha }}
       version: ${{ steps.metadata.outputs.version }}
+      baseline: ${{ steps.metadata.outputs.baseline }}
       build: ${{ steps.metadata.outputs.build }}
     steps:
       - name: Checkout
@@ -84,8 +85,13 @@ jobs:
           CHANGED: ${{ steps.merge.outputs.changed }}
         run: |
           set -euo pipefail
-          version=$(node -p "require('./apps/desktop/package.json').version")
-          echo "version=${version}-nightly.$(date -u +%Y%m%d).${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          if [[ "$(git rev-parse --is-shallow-repository)" == 'true' ]]; then
+            git fetch --no-tags --filter=blob:none --unshallow origin main
+          fi
+          git fetch --no-tags --filter=blob:none https://github.com/pingdotgg/t3code.git \
+            '+refs/tags/v*:refs/tags/personal-upstream/v*'
+          node --test scripts/resolve-personal-version.test.mjs
+          node scripts/resolve-personal-version.mjs "$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           if [[ "$EVENT_NAME" == 'schedule' && "$CHANGED" != 'true' ]]; then
             echo 'build=false' >> "$GITHUB_OUTPUT"
@@ -199,9 +205,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BUILD_VERSION: ${{ needs.prepare.outputs.version }}
           BUILD_SHA: ${{ needs.prepare.outputs.sha }}
+          BASELINE: ${{ needs.prepare.outputs.baseline }}
         run: |
           set -euo pipefail
           gh release create "v$BUILD_VERSION" packages/* \
             --repo "$GITHUB_REPOSITORY" --target "$BUILD_SHA" --prerelease \
             --title "Personal T3 Code $BUILD_VERSION" \
-            --notes 'Personal build. Linux and macOS check this repository for updates. macOS packages are unsigned and not notarized.'
+            --notes "Official nightly baseline: v$BASELINE. Personal source commit: $BUILD_SHA. The source may include newer upstream commits. Linux and macOS check this repository for updates. macOS packages are unsigned and not notarized."
