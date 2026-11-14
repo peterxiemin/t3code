@@ -585,6 +585,14 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         },
       ]);
       assert.isNull(mac.publish);
+      assert.deepInclude(mac.extraResources as Array<unknown>, {
+        from: "apps/desktop/personal-mac-updater/updater.mjs",
+        to: "personal-mac-updater.mjs",
+      });
+      assert.notDeepInclude(linux.extraResources as Array<unknown>, {
+        from: "apps/desktop/personal-mac-updater/updater.mjs",
+        to: "personal-mac-updater.mjs",
+      });
     }).pipe(
       Effect.provide(
         ConfigProvider.layer(

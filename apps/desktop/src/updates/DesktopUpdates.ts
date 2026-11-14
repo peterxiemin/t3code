@@ -26,6 +26,9 @@ import * as Schema from "effect/Schema";
 import * as Scope from "effect/Scope";
 import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
+// @effect-diagnostics-next-line nodeBuiltinImport:off - The update helper must survive the desktop process exiting.
+import * as NodeChildProcess from "node:child_process";
+import * as NodeProcess from "node:process";
 
 import * as DesktopBackendManager from "../backend/DesktopBackendManager.ts";
 import * as DesktopBackendPool from "../backend/DesktopBackendPool.ts";
@@ -467,7 +470,28 @@ export const make = Effect.gen(function* () {
     ),
   );
 
+  const personalMacHelper = environment.path.join(
+    environment.resourcesPath,
+    "personal-mac-updater.mjs",
+  );
+  const personalMacHelperExists = yield* fileSystem
+    .exists(personalMacHelper)
+    .pipe(Effect.orElseSucceed(() => false));
+  const personalMacUpdates =
+    environment.platform === "darwin" &&
+    environment.isPackaged &&
+    !config.disableAutoUpdate &&
+    policy.mode === "auto" &&
+    policy.allowNightly &&
+    policy.feedUrl === undefined &&
+    personalMacHelperExists;
+
   const resolveDisabledReason = Effect.gen(function* () {
+    if (personalMacUpdates) {
+      return Option.some(
+        "Personal Mac updates run automatically in the background; this panel controls the standard updater.",
+      );
+    }
     const hasFeedConfig = yield* hasUpdateFeedConfig;
     return Option.fromNullishOr(
       getAutoUpdateDisabledReason({
@@ -1191,6 +1215,27 @@ export const make = Effect.gen(function* () {
       }
 
       const settings = yield* desktopSettings.get;
+      if (personalMacUpdates) {
+        yield* Effect.sync(() => {
+          const child = NodeChildProcess.spawn(
+            NodeProcess.execPath,
+            [
+              personalMacHelper,
+              String(NodeProcess.pid),
+              environment.path.resolve(environment.resourcesPath, "../.."),
+              NodeProcess.execPath,
+              environment.appVersion,
+            ],
+            {
+              detached: true,
+              stdio: "ignore",
+              env: { ...NodeProcess.env, ELECTRON_RUN_AS_NODE: "1" },
+            },
+          );
+          child.on("error", () => {});
+          child.unref();
+        });
+      }
       // Personal Linux builds follow only the fork's nightly feed, even when they inherit a
       // Stable preference from an existing installation.
       const personalLinuxFeed =

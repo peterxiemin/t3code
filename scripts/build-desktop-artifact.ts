@@ -2821,6 +2821,12 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   // This fork's macOS builds have no signing identity and cannot use Squirrel.Mac updates.
   const unsignedPersonalMac =
     platform === "mac" && Option.getOrUndefined(githubRepository) === "peterxiemin/t3code";
+  if (unsignedPersonalMac) {
+    (buildConfig.extraResources as Array<unknown>).push({
+      from: "apps/desktop/personal-mac-updater/updater.mjs",
+      to: "personal-mac-updater.mjs",
+    });
+  }
   // Missing publish config infers a GitHub feed from tokens; staging has no repository, so manifest generation would crash.
   buildConfig.publish = null;
   if (!isDesktopPreviewVersion(version) && !unsignedPersonalMac) {
@@ -3800,6 +3806,12 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
   yield* Effect.log("[desktop-artifact] Staging release app...");
   yield* fs.copy(distDirs.desktopDist, path.join(stageAppDir, "apps/desktop/dist-electron"));
   yield* fs.copy(distDirs.desktopResources, stageResourcesDir);
+  if (options.platform === "mac") {
+    yield* fs.copy(
+      path.join(repoRoot, "apps/desktop/personal-mac-updater"),
+      path.join(stageAppDir, "apps/desktop/personal-mac-updater"),
+    );
+  }
   if (options.platform === "linux") {
     const extensionDir = path.join(stageAppDir, "apps/desktop/gnome-extension");
     yield* fs.makeDirectory(extensionDir, { recursive: true });

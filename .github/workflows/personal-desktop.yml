@@ -204,4 +204,4 @@ jobs:
           gh release create "v$BUILD_VERSION" packages/* \
             --repo "$GITHUB_REPOSITORY" --target "$BUILD_SHA" --prerelease \
             --title "Personal T3 Code $BUILD_VERSION" \
-            --notes 'Personal build. Linux updates use this repository. macOS packages are unsigned and require manual updates.'
+            --notes 'Personal build. Linux and macOS check this repository for updates. macOS packages are unsigned and not notarized.'
