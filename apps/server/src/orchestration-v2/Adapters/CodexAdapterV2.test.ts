@@ -1519,16 +1519,17 @@ describe("CodexAdapterV2 post-settle continuation", () => {
       };
     });
 
-  it.effect.each(["native", "ordinary"] as const)(
-    "resumes Codex without a prompt only for an existing conversation (%s)",
+  it.effect.each(["native", "ordinary", "restart"] as const)(
+    "sends a prompt to Codex for ordinary and restart turns and resumes manually without one (%s)",
     (mode) =>
       Effect.gen(function* () {
         const nativeThreadId = `resume-${mode}`;
         const nativeTurnId = `resume-turn-${mode}`;
+        const prompt = mode === "restart" ? "Continue where you left off." : "Hello";
         const preamble = codexReplayPreamble({
           nativeThreadId,
           nativeTurnId,
-          prompt: "Hello",
+          prompt,
         });
         const harness = yield* makeCodexReplayHarness(
           makeCodexReplayTranscript({
@@ -1571,13 +1572,18 @@ describe("CodexAdapterV2 post-settle continuation", () => {
             providerThread: harness.providerThread,
             now: yield* DateTime.now,
             attemptId: RunAttemptId.make(`resume-${mode}`),
-            text: "Hello",
+            text: prompt,
           }),
           nativeThreadHasTurns: true,
         };
         const { message, ...resumeInput } = input;
         if (mode === "native")
           yield* harness.runtime.resumeTurn!({ ...resumeInput, messageId: message.messageId });
+        else if (mode === "restart")
+          yield* harness.runtime.startTurn({
+            ...input,
+            restartContinuationOfRunId: RunId.make("previous-run"),
+          });
         else yield* harness.runtime.startTurn(input);
         yield* harness.firstTerminal;
         assert.equal(harness.terminalEvents()[0]?.status, "completed");

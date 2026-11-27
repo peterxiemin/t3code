@@ -7862,7 +7862,7 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               }
               yield* startNativeTurn(
                 turnInput,
-                !continuation ? yield* toCodexInput(turnInput) : [],
+                turnInput.resume === true ? [] : yield* toCodexInput(turnInput),
               );
             }).pipe(
               Effect.mapError(
